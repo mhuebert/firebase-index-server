@@ -1,0 +1,28 @@
+{
+  "name": "firebase-index-server",
+  "version": "0.0.0",
+  "description": "Maintain indexes in Firebase",
+  "main": "server.coffee",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sparkboard/firebase-index-server.git"
+  },
+  "keywords": [
+    "firebase",
+    "indexes"
+  ],
+  "author": "Matthew Huebert",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sparkboard/firebase-index-server/issues"
+  },
+  "homepage": "https://github.com/sparkboard/firebase-index-server",
+  "dependencies": {
+    "firebase": "^1.0.15-3",
+    "underscore": "^1.6.0",
+    "coffee-script": "^1.7.1"
+  }
+}
