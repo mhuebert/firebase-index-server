@@ -13,15 +13,14 @@
 # Eventually we can dynamically create indexes, possibly
 # using a web UI.
 
-
+Firebase = require("firebase")
 _ = require("underscore")
 
 module.exports = IndexServer = (options) ->
-  Firebase = options.Firebase || require("firebase")
   
   # connect to Firebase
   {FIREBASE_URL, index} = options
-  rootRef = new Firebase(FIREBASE_URL)
+  rootRef = options.ref || new Firebase(FIREBASE_URL)
 
   blankSnapshot =
     val: -> {}
