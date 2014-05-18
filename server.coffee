@@ -50,14 +50,13 @@ module.exports = IndexServer = (options) ->
         # If the priority has changed, update all tags.
         priority = index.priority?(currentSnap) || currentSnap.getPriority()
         if index.priority and (priority != prevSnap.getPriority())
-          console.log "Priority changed"
           newTagList = currentTags
 
         # Update indexes
         for tag in newTagList
-          rootRef.child("#{index.indexPath}/#{tag}/#{id}").setWithPriority true, priority
+          rootRef.child("#{index.indexPath}/#{tag.toLowerCase().trim()}/#{id}").setWithPriority true, priority
         for tag in removedTagList
-          rootRef.child("#{index.indexPath}/#{tag}/#{id}").set null
+          rootRef.child("#{index.indexPath}/#{tag.toLowerCase().trim()}/#{id}").set null
         
         # Save previous version, with priority
         rootRef.child(previousPath).setWithPriority currentSnap.child(index.sourceAttribute).val(), priority
