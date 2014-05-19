@@ -52,11 +52,15 @@ module.exports = IndexServer = (options) ->
         if index.priority and (priority != prevSnap.getPriority())
           newTagList = currentTags
 
+        # We can provide a function that will modify the key before
+        # using it as an index
+        keyTransform = index.keyTransform || (key) -> key
+
         # Update indexes
         for tag in newTagList
-          rootRef.child("#{index.indexPath}/#{tag.toLowerCase().trim()}/#{id}").setWithPriority true, priority
+          rootRef.child("#{index.indexPath}/#{keyTransform(tag)}/#{id}").setWithPriority true, priority
         for tag in removedTagList
-          rootRef.child("#{index.indexPath}/#{tag.toLowerCase().trim()}/#{id}").set null
+          rootRef.child("#{index.indexPath}/#{keyTransform(tag)}/#{id}").set null
         
         # Save previous version, with priority
         rootRef.child(previousPath).setWithPriority currentSnap.child(index.sourceAttribute).val(), priority
