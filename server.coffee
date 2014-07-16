@@ -16,17 +16,22 @@
 Firebase = require("firebase")
 _ = require("underscore")
 
+blankSnapshot =
+  val: -> {}
+  child: -> blankSnapshot
+  getPriority: -> null
+
 module.exports = IndexServer = (options) ->
   
   # connect to Firebase
-  {FIREBASE_URL, index} = options
+  {FIREBASE_URL} = options
   rootRef = options.ref || new Firebase(FIREBASE_URL)
 
-  blankSnapshot =
-    val: -> {}
-    child: -> blankSnapshot
-    getPriority: -> null
+  for index in options.indexes
+    Handlers[index.type](rootRef, index)
 
+Handlers = {}
+Handlers.oneToMany = (rootRef, index) ->
   updateTags = (event) ->
     (currentSnap) ->
       id = currentSnap.name()
@@ -65,6 +70,38 @@ module.exports = IndexServer = (options) ->
         # Save previous version, with priority
         rootRef.child(previousPath).setWithPriority currentSnap.child(index.sourceAttribute).val(), priority
 
+  # Listen for changes
+  rootRef.child("#{index.sourcePath}").on "child_changed", updateTags("child_changed")
+  rootRef.child("#{index.sourcePath}").on "child_added", updateTags("child_added")
+  rootRef.child("#{index.sourcePath}").on "child_removed", updateTags("child_removed")
+Handlers.oneToOne = (rootRef, index) ->
+  updateTags = (event) ->
+    (currentSnap) ->
+      id = currentSnap.name()
+
+      # Get previous version of element
+      previousPath = "previous/#{index.sourcePath}/#{id}/#{index.sourceAttribute}"
+      rootRef.child(previousPath).once "value", (prevSnap) ->
+        # console.log "-- #{event} --"
+
+        # child_removed passes the *old* version of the snapshot.
+        # Use a blank snapshot instead.
+        if event == "child_removed" then currentSnap = blankSnapshot
+        
+        prevTag = prevSnap.val()
+        currentTag = currentSnap.child(index.sourceAttribute).val()
+
+        keyTransform = index.keyTransform || (key) -> key
+
+        priority = index.priority?(currentSnap) || currentSnap.getPriority()
+
+        # Update indexes
+        rootRef.child("#{index.indexPath}/#{keyTransform(prevTag)}/#{id}").set null
+        if currentTag != null
+          rootRef.child("#{index.indexPath}/#{keyTransform(currentTag)}/#{id}").setWithPriority true, priority
+          
+        # Save previous version, with priority
+        rootRef.child(previousPath).setWithPriority currentSnap.child(index.sourceAttribute).val(), priority
 
   # Listen for changes
   rootRef.child("#{index.sourcePath}").on "child_changed", updateTags("child_changed")
