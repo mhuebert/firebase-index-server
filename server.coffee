@@ -17,7 +17,7 @@ Firebase = require("firebase")
 _ = require("underscore")
 
 blankSnapshot =
-  val: -> {}
+  val: -> null
   child: -> blankSnapshot
   getPriority: -> null
 
@@ -61,6 +61,8 @@ Handlers.oneToMany = (rootRef, index) ->
         # using it as an index
         keyTransform = index.keyTransform || (key) -> key
 
+
+
         # Update indexes
         for tag in newTagList
           rootRef.child("#{index.indexPath}/#{keyTransform(tag)}/#{id}").setWithPriority true, priority
@@ -96,7 +98,8 @@ Handlers.oneToOne = (rootRef, index) ->
         priority = index.priority?(currentSnap) || currentSnap.getPriority()
 
         # Update indexes
-        rootRef.child("#{index.indexPath}/#{keyTransform(prevTag)}/#{id}").set null
+        if prevTag != null
+          rootRef.child("#{index.indexPath}/#{keyTransform(prevTag)}/#{id}").set null
         if currentTag != null
           rootRef.child("#{index.indexPath}/#{keyTransform(currentTag)}/#{id}").setWithPriority true, priority
           
