@@ -28,10 +28,16 @@ module.exports = IndexServer = (options) ->
   rootRef = options.ref || new Firebase(FIREBASE_URL)
 
   for index in options.indexes
-    Handlers[index.type](rootRef, index)
+    uid = ""
+    for key, value of index
+      if typeof key == 'string' and typeof value == 'string' and key != 'type'
+        uid+=key+"_" unless key == 'type'
+        uid+= value+"_" if typeof value == 'string'
+        uid = uid.replace /\//g, "_"
+    Handlers[index.type](rootRef, index, uid)
 
 Handlers = {}
-Handlers.oneToMany = (rootRef, index) ->
+Handlers.manyToMany = (rootRef, index, uid) ->
   updateTags = (event) ->
     (currentSnap) ->
       id = currentSnap.name()
@@ -65,8 +71,10 @@ Handlers.oneToMany = (rootRef, index) ->
 
         # Update indexes
         for tag in newTagList
+          # console.log keyTransform(tag)
           rootRef.child("#{index.indexPath}/#{keyTransform(tag)}/#{id}").setWithPriority true, priority
         for tag in removedTagList
+          # console.log keyTransform(tag)
           rootRef.child("#{index.indexPath}/#{keyTransform(tag)}/#{id}").set null
         
         # Save previous version, with priority
@@ -76,7 +84,7 @@ Handlers.oneToMany = (rootRef, index) ->
   rootRef.child("#{index.sourcePath}").on "child_changed", updateTags("child_changed")
   rootRef.child("#{index.sourcePath}").on "child_added", updateTags("child_added")
   rootRef.child("#{index.sourcePath}").on "child_removed", updateTags("child_removed")
-Handlers.oneToOne = (rootRef, index) ->
+Handlers.oneToOne = (rootRef, index, uid) ->
   updateTags = (event) ->
     (currentSnap) ->
       id = currentSnap.name()
@@ -98,7 +106,7 @@ Handlers.oneToOne = (rootRef, index) ->
         priority = index.priority?(currentSnap) || currentSnap.getPriority()
 
         # Update indexes
-        if prevTag != null
+        if prevTag != currentTag
           rootRef.child("#{index.indexPath}/#{keyTransform(prevTag)}/#{id}").set null
         if currentTag != null
           rootRef.child("#{index.indexPath}/#{keyTransform(currentTag)}/#{id}").setWithPriority true, priority
@@ -110,3 +118,47 @@ Handlers.oneToOne = (rootRef, index) ->
   rootRef.child("#{index.sourcePath}").on "child_changed", updateTags("child_changed")
   rootRef.child("#{index.sourcePath}").on "child_added", updateTags("child_added")
   rootRef.child("#{index.sourcePath}").on "child_removed", updateTags("child_removed")
+Handlers.permalink = (rootRef, index) ->
+  updatePermalink = (event) ->
+    (currentSnap) ->
+
+      id = currentSnap.name()
+
+      # Get previous version of element
+      previousPath = "previous/#{index.sourcePath}/#{id}/#{index.sourceAttribute}"
+      rootRef.child(previousPath).once "value", (prevSnap) ->
+
+        
+
+        permalink = currentSnap.child(index.sourceAttribute).val()
+        redirect = index.getRedirect(currentSnap)
+
+        if permalink != prevSnap.val()
+          rootRef.child(index.indexPath+"/"+prevSnap.val()).set(null)
+        
+        if event == "child_removed" or permalink == null
+          return
+
+        rootRef.child("#{index.indexPath}/#{permalink}").set redirect
+        
+        # Save previous version, with priority
+        rootRef.child(previousPath).set currentSnap.child(index.sourceAttribute).val()
+
+  # Listen for changes
+  rootRef.child("#{index.sourcePath}").on "child_changed", updatePermalink("child_changed")
+  rootRef.child("#{index.sourcePath}").on "child_added", updatePermalink("child_added")
+  rootRef.child("#{index.sourcePath}").on "child_removed", updatePermalink("child_removed")
+Handlers.derivedPriority = (rootRef, index, uid) ->
+  updatePriority = (event) ->
+    (currentSnap) ->
+      id = currentSnap.name()
+      console.log "checking priority"
+      priority = index.priority?(currentSnap)
+      if priority != currentSnap.getPriority()
+        console.log "set priority #{priority}"
+        currentSnap.ref().setPriority priority
+        
+
+  # Listen for changes
+  rootRef.child("#{index.sourcePath}").on "child_changed", updatePriority("child_changed")
+  rootRef.child("#{index.sourcePath}").on "child_added", updatePriority("child_added")
